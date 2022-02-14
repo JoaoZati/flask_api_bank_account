@@ -5,13 +5,15 @@ Sotore a sentece for 1 token
 Retrive his stored sentence on our database for 1 token
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_restful import Api, Resource
 
 from pymongo import MongoClient
 from debugger import initialize_debugger
 
 import bcrypt
+
+import facade as fc
 
 app = Flask(__name__)
 app.config.from_object('config.DevelopmentConfig')
@@ -28,131 +30,17 @@ def hello_word():
     return 'Hello Word'
 
 
-def set_admin_in_db():
-    try:
-        admin_username = app.config['ADMIN_USERNAME']
-        admin.find({"Admin": admin_username})[0]['Admin']
-    except Exception as e:
-        admin.delete_many({})
-        hashed_password = bcrypt.hashpw(app.config['ADMIN_PASSWORD'], bcrypt.gensalt())
-        admin.insert_one(
-            {
-                "Admin": app.config['ADMIN_USERNAME'],
-                "Password": hashed_password
-            }
-        )
-        print('Set Admin sucessfully!')
-
-
-def get_data():
-    dict_resp = {
-        'status_code': 200,
-        'message': 'Ok'
-    }
-
-    try:
-        post_data = request.get_json()
-
-        dict_resp['username'] = post_data["username"]
-        dict_resp['password'] = post_data["password"]
-
-    except Exception as e:
-        dict_resp = {
-        'status_code': 305,
-        'message': str(e)
-        }
-
-    return dict_resp
-
-
-def get_data_admin():
-    dict_resp = {
-        'status_code': 200,
-        'message': 'Ok'
-    }
-
-    try:
-        post_data = request.get_json()
-
-        dict_resp['username'] = str(post_data["username"])
-        dict_resp['admin_username'] = str(post_data["admin_username"])
-        dict_resp['admin_password'] = str(post_data["admin_password"])
-        dict_resp['refil_tokens'] = int(post_data["refil_tokens"])
-    except Exception as e:
-        dict_resp = {
-        'status_code': 305,
-        'message': str(e)
-        }
-    
-    return dict_resp
-
-
-def user_already_exist(username):
-    try:
-        if users.find({"Username": username})[0]['Username'] == username:
-            return True
-    except Exception as e:
-        print(e)
-    
-    return False
-
-
-def valid_user_and_passoword(username, password):
-    try:
-        hash_password = str(users.find({"Username": username})[0]["Password"])
-        if bcrypt.hashpw(password, hash_password) == hash_password:
-            return True
-    except Exception as e:
-        print(e)
-    
-    return False
-
-
-def valid_admin_and_passoword(username, password):
-    try:
-        hash_password = str(admin.find({"Admin": username})[0]["Password"])
-        if bcrypt.hashpw(password, hash_password) == hash_password:
-            return True
-    except Exception as e:
-        print(e)
-    
-    return False
-
-
-def get_tokens(username):
-    try:
-        tokens = int(users.find({"Username": username})[0]["Tokens"])
-    except Exception as e:
-        print(e)
-        tokens = 0
-    
-    return tokens
-
-
-def set_username_tokens(username, tokens):
-
-    users.update_one(
-        {"Username": username},
-        {
-            "$set": {
-                "Tokens": tokens
-                }
-        } 
-    )
-
-
 class Register(Resource):
     def post(self):
-        dict_resp = get_data()
+        dict_resp = fc.get_data_register()
 
         if dict_resp['status_code'] != 200:
             return dict_resp
         
         username = dict_resp['username']
         password = dict_resp['password']
-        tokens = 5
         
-        if user_already_exist(username):
+        if fc.user_already_exist(username):
             return jsonify(
                 {
                     'Status Code': 301,
@@ -160,24 +48,22 @@ class Register(Resource):
                 }
             )
 
-        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
-
-        users.insert_one(
-            {
-                "Username": username,
-                "Password": hashed_password,
-                "Tokens": tokens
-            }
-        )
-
-        dict_resp['Tokens'] = tokens
+        try:
+            fc.create_new_user(username, password, dict_resp)
+        except:
+            return jsonify(
+                {
+                    'Status Code': 305,
+                    'Message': "One internal error has occurred",
+                }
+            )
 
         return jsonify(dict_resp)
 
 
 class Detect(Resource):
     def post(self):
-        dict_resp = get_data()
+        dict_resp = fc.get_data_register()
 
         if dict_resp['status_code'] != 200:
             return dict_resp
@@ -185,11 +71,11 @@ class Detect(Resource):
         username = dict_resp['username']
         password = dict_resp['password']
         
-        if not valid_user_and_passoword(username, password):
+        if not fc.valid_user_and_passoword(username, password):
             dict_resp['message'] = "Invalid Username or Password"
             return jsonify(dict_resp)
         
-        tokens = get_tokens(username)
+        tokens = fc.get_tokens(username)
 
         if tokens < 1:
             return jsonify(
@@ -200,7 +86,7 @@ class Detect(Resource):
             )
 
         try:
-            set_username_tokens(username, tokens - 1)
+            fc.set_username_tokens(username, tokens - 1)
         except Exception as e:
             print(e)
             return jsonify(
@@ -219,7 +105,7 @@ class Detect(Resource):
 
 class Refil(Resource):
     def post(self):
-        dict_result = get_data_admin()
+        dict_result = fc.get_data_admin()
 
         if dict_result['status_code'] != 200:
             return jsonify(dict_result)
@@ -229,7 +115,7 @@ class Refil(Resource):
         admin_password = dict_result['admin_password']
         refil_tokens = dict_result['refil_tokens']
 
-        if not user_already_exist(username):
+        if not fc.user_already_exist(username):
             return jsonify(
                 {
                     'Status Code': 302,
@@ -237,7 +123,7 @@ class Refil(Resource):
                 }
             )
 
-        if not valid_admin_and_passoword(admin_username, admin_password):
+        if not fc.valid_admin_and_passoword(admin_username, admin_password):
             return jsonify(
                 {
                     'Status Code': 303,
@@ -245,9 +131,9 @@ class Refil(Resource):
                 }
             )
 
-        tokens = get_tokens(username)
+        tokens = fc.get_tokens(username)
         new_tokens = tokens + refil_tokens
-        set_username_tokens(username, new_tokens)
+        fc.set_username_tokens(username, new_tokens)
 
         dict_result['old_tokens'] = tokens
         dict_result['new_tokens'] = new_tokens
@@ -262,7 +148,7 @@ api.add_resource(Refil, "/refil")
 if __name__ == '__main__':
     initialize_debugger()
 
-    set_admin_in_db()
+    fc.set_admin_in_db()
 
     app.run(
         host = app.config['HOST'],
