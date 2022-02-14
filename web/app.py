@@ -5,6 +5,7 @@ Sotore a sentece for 1 token
 Retrive his stored sentence on our database for 1 token
 """
 
+from re import A
 from flask import Flask, jsonify
 from flask_restful import Api, Resource
 
@@ -61,32 +62,31 @@ class Register(Resource):
         return jsonify(dict_resp)
 
 
-class Detect(Resource):
+class Add(Resource):
     def post(self):
-        dict_resp = fc.get_data_register()
+        dict_resp = fc.get_data_admin(add=True)
 
         if dict_resp['status_code'] != 200:
             return dict_resp
-        
-        username = dict_resp['username']
-        password = dict_resp['password']
-        
-        if not fc.valid_user_and_passoword(username, password):
-            dict_resp['message'] = "Invalid Username or Password"
-            return jsonify(dict_resp)
-        
-        tokens = fc.get_tokens(username)
 
-        if tokens < 1:
+        if not fc.valid_admin_and_passoword(dict_resp['admin_username'], dict_resp['admin_password']):
             return jsonify(
                 {
                     'Status Code': 303,
-                    'Message': "You dont have enouth tokens",
+                    'Message': 'Invalid admin username or admin password',
                 }
             )
-
+        
+        if not fc.valid_account(dict_resp['account']):
+            return jsonify(
+                {
+                    'Status Code': 302,
+                    'Message': 'Invalid account',
+                }
+            )
+        
         try:
-            fc.set_username_tokens(username, tokens - 1)
+            fc.add_founds(dict_resp['account'], dict_resp['amount'])
         except Exception as e:
             print(e)
             return jsonify(
@@ -95,10 +95,6 @@ class Detect(Resource):
                     'Message': "Sorry one internal error have ocurred",
                 }
             )
-        
-        "Setar função aqui"
-
-        dict_resp['tokens'] = tokens - 1 
 
         return jsonify(dict_resp)
 
@@ -142,7 +138,7 @@ class Refil(Resource):
 
 
 api.add_resource(Register, "/register")
-api.add_resource(Detect, "/detect")
+api.add_resource(Add, "/add")
 api.add_resource(Refil, "/refil")
 
 if __name__ == '__main__':

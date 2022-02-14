@@ -4,6 +4,7 @@ import bcrypt
 
 from random import randint
 
+
 def set_admin_in_db():
     try:
         admin_username = app.config['ADMIN_USERNAME']
@@ -41,7 +42,7 @@ def get_data_register():
     return dict_resp
 
 
-def get_data_admin():
+def get_data_admin(add=False):
     dict_resp = {
         'status_code': 200,
         'message': 'Ok'
@@ -50,15 +51,23 @@ def get_data_admin():
     try:
         post_data = request.get_json()
 
-        dict_resp['username'] = str(post_data["username"])
         dict_resp['admin_username'] = str(post_data["admin_username"])
         dict_resp['admin_password'] = str(post_data["admin_password"])
-        dict_resp['refil_tokens'] = int(post_data["refil_tokens"])
     except Exception as e:
         dict_resp = {
-        'status_code': 305,
-        'message': str(e)
-        }
+            'status_code': 305,
+            'message': str(e)
+            }
+    
+    if add and dict_resp['status_code'] == 200:
+        try:
+            dict_resp['account'] = str(post_data["account"])
+            dict_resp['amount'] = float(post_data["amount"])
+        except Exception as e:
+            dict_resp = {
+                'status_code': 305,
+                'message': str(e)
+                }
     
     return dict_resp
 
@@ -145,12 +154,34 @@ def create_new_user(username, password, dict_resp):
             "Password": hashed_password,
             "Amount": 0,
             "Credit": 0,
-            "Account": account
+            "Account": account,
+            "Credit_limit": 2000
         }
 
     users.insert_one(
         dict_user
     )
 
-    for word in ['Amount', 'Credit', 'Account']:
-        dict_resp[word] = dict_user[word]
+    for word in ['Amount', 'Credit', 'Account', 'Credit_limit']:
+        dict_resp[word.lower()] = dict_user[word]
+
+
+def valid_account(account):
+    try:
+        users.find({"Account": account})[0]
+        return True
+    except Exception as e:
+        return False
+
+
+def add_founds(account, amount):
+    amount = users.find({"Account": account})[0]['Amount'] + amount
+
+    users.update_one(
+        {"Account": account},
+        {
+            "$set": {
+                "Amount": amount
+                }
+        } 
+    )
