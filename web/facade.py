@@ -235,3 +235,30 @@ def check_account(account):
         'credit': user['Credit'],
         'credit_limit': user['Credit_limit']
     }
+
+
+def delete_account(account):
+    user = users.find({"Account": account})[0]
+
+    amount, credit, username = user['Amount'], user['Credit'], user['Username']
+
+    if amount or credit:
+        return {
+            "message": "Your account must be empty to delete",
+            "status_code": 307,
+            "amount": amount,
+            "credit": credit
+        }
+
+    users.delete_one(
+        {
+            'Account': account
+        }
+    )
+
+    return {
+        'message': 'Your account was succesfuly deleted',
+        'status_code': 200,
+        'account': account,
+        'username': username
+    }

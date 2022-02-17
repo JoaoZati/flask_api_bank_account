@@ -210,11 +210,34 @@ class CheckAccount(Resource):
         return jsonify(resp_json)
 
 
+class DeleteAccount(Resource):
+    def post(self):
+        list_form = [
+            'account',
+            'password',
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if not fc.valid_account_and_password(dict_resp['account'], dict_resp['password']):
+            return jsonify(
+                {
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
+                }
+            )
+        
+        resp_json = fc.delete_account(dict_resp['account'])
+
+        return resp_json
+
+
 api.add_resource(Register, "/register")
 api.add_resource(Add, "/add")
 api.add_resource(Transfer, "/transfer")
 api.add_resource(CheckUsername, "/check-username")
 api.add_resource(CheckAccount, "/check-account")
+api.add_resource(DeleteAccount, "/delete-account")
 
 
 if __name__ == '__main__':
