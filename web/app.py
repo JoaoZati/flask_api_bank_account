@@ -12,8 +12,6 @@ from flask_restful import Api, Resource
 from pymongo import MongoClient
 from debugger import initialize_debugger
 
-import bcrypt
-
 import facade as fc
 
 app = Flask(__name__)
@@ -33,7 +31,12 @@ def hello_word():
 
 class Register(Resource):
     def post(self):
-        dict_resp = fc.get_data_register()
+        list_form = [
+            'username',
+            'password'
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
 
         if dict_resp['status_code'] != 200:
             return dict_resp
@@ -64,7 +67,14 @@ class Register(Resource):
 
 class Add(Resource):
     def post(self):
-        dict_resp = fc.get_data_admin(add=True)
+        list_form = [
+            'admin_username',
+            'admin_password',
+            'account',
+            'amount',
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
 
         if dict_resp['status_code'] != 200:
             return dict_resp
@@ -99,47 +109,113 @@ class Add(Resource):
         return jsonify(dict_resp)
 
 
-class Refil(Resource):
+class Transfer(Resource):
     def post(self):
-        dict_result = fc.get_data_admin()
+        list_form = [
+            'username',
+            'password',
+            'account',
+            'amount'
+        ]
 
-        if dict_result['status_code'] != 200:
-            return jsonify(dict_result)
+        dict_resp = fc.get_data_form(list_form)
+
+        if dict_resp['status_code'] != 200:
+            return dict_resp
         
-        username = dict_result['username']
-        admin_username = dict_result['admin_username']
-        admin_password = dict_result['admin_password']
-        refil_tokens = dict_result['refil_tokens']
-
-        if not fc.user_already_exist(username):
+        try:
+            amount = float(dict_resp['amount'])
+        except Exception as e:
             return jsonify(
                 {
-                    'Status Code': 302,
-                    'Message': 'Invalid username',
+                    'message': str(e),
+                    'status_code': 305,
+                }
+            )
+        
+        if amount <= 0:
+            return jsonify(
+                {
+                    'message': "For transfer founds you need pass a number bigger than 0",
+                    'status_code': 304
                 }
             )
 
-        if not fc.valid_admin_and_passoword(admin_username, admin_password):
+        if not fc.valid_user_and_passoword(dict_resp['username'], dict_resp['password']):
             return jsonify(
                 {
-                    'Status Code': 303,
-                    'Message': 'Invalid admin username or admin password',
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
                 }
             )
 
-        tokens = fc.get_tokens(username)
-        new_tokens = tokens + refil_tokens
-        fc.set_username_tokens(username, new_tokens)
+        if not fc.valid_account(dict_resp['account']):
+            return jsonify(
+                {
+                    'message': "The account you provide does not exist",
+                    'status_code': 303,
+                }
+            )
+        
+        dict_json = fc.transfer(
+            dict_resp['username'],
+            dict_resp['account'],
+            dict_resp['amount']
+        )
 
-        dict_result['old_tokens'] = tokens
-        dict_result['new_tokens'] = new_tokens
+        return jsonify(dict_json)
 
-        return jsonify(dict_result)
+
+class CheckUsername(Resource):
+    def post(self):
+        list_form = [
+            'username',
+            'password',
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if not fc.valid_user_and_passoword(dict_resp['username'], dict_resp['password']):
+            return jsonify(
+                {
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
+                }
+            )
+        
+        resp_json = fc.check_user_account(dict_resp['username'])
+
+        return jsonify(resp_json)
+
+
+class CheckAccount(Resource):
+    def post(self):
+        list_form = [
+            'account',
+            'password',
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if not fc.valid_account_and_password(dict_resp['account'], dict_resp['password']):
+            return jsonify(
+                {
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
+                }
+            )
+        
+        resp_json = fc.check_account(dict_resp['account'])
+
+        return jsonify(resp_json)
 
 
 api.add_resource(Register, "/register")
 api.add_resource(Add, "/add")
-api.add_resource(Refil, "/refil")
+api.add_resource(Transfer, "/transfer")
+api.add_resource(CheckUsername, "/check-username")
+api.add_resource(CheckAccount, "/check-account")
+
 
 if __name__ == '__main__':
     initialize_debugger()

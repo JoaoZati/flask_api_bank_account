@@ -2,8 +2,6 @@ from app import admin, users, app
 from flask import request
 import bcrypt
 
-from random import randint
-
 
 def set_admin_in_db():
     try:
@@ -21,7 +19,7 @@ def set_admin_in_db():
         print('Set Admin sucessfully!')
 
 
-def get_data_register():
+def get_data_form(list_items_form: list):
     dict_resp = {
         'status_code': 200,
         'message': 'Ok'
@@ -30,8 +28,8 @@ def get_data_register():
     try:
         post_data = request.get_json()
 
-        dict_resp['username'] = post_data["username"]
-        dict_resp['password'] = post_data["password"]
+        for item in list_items_form:
+            dict_resp[item] = post_data[item]
 
     except Exception as e:
         dict_resp = {
@@ -39,36 +37,6 @@ def get_data_register():
         'message': str(e)
         }
 
-    return dict_resp
-
-
-def get_data_admin(add=False):
-    dict_resp = {
-        'status_code': 200,
-        'message': 'Ok'
-    }
-
-    try:
-        post_data = request.get_json()
-
-        dict_resp['admin_username'] = str(post_data["admin_username"])
-        dict_resp['admin_password'] = str(post_data["admin_password"])
-    except Exception as e:
-        dict_resp = {
-            'status_code': 305,
-            'message': str(e)
-            }
-    
-    if add and dict_resp['status_code'] == 200:
-        try:
-            dict_resp['account'] = str(post_data["account"])
-            dict_resp['amount'] = float(post_data["amount"])
-        except Exception as e:
-            dict_resp = {
-                'status_code': 305,
-                'message': str(e)
-                }
-    
     return dict_resp
 
 
@@ -93,6 +61,16 @@ def valid_user_and_passoword(username, password):
     return False
 
 
+def valid_account_and_password(account, password):
+    try:
+        hash_password = str(users.find({"Account": account})[0]["Password"])
+        if bcrypt.hashpw(password, hash_password) == hash_password:
+            return True
+    except Exception as e:
+        print(e)
+    
+    return False
+
 def valid_admin_and_passoword(username, password):
     try:
         hash_password = str(admin.find({"Admin": username})[0]["Password"])
@@ -102,28 +80,6 @@ def valid_admin_and_passoword(username, password):
         print(e)
     
     return False
-
-
-def get_tokens(username):
-    try:
-        tokens = int(users.find({"Username": username})[0]["Tokens"])
-    except Exception as e:
-        print(e)
-        tokens = 0
-    
-    return tokens
-
-
-def set_username_tokens(username, tokens):
-
-    users.update_one(
-        {"Username": username},
-        {
-            "$set": {
-                "Tokens": tokens
-                }
-        } 
-    )
 
 
 def create_new_account():
@@ -185,3 +141,97 @@ def add_founds(account, amount):
                 }
         } 
     )
+
+
+def transfer(username, account, amount):
+    amount_username_old = users.find({"Username": username})[0]['Amount']
+    amount_username = amount_username_old - amount
+
+    if amount_username < 0:
+        return {
+            "messange": "You don't have enouth money in your account to transfer this amount",
+            "status_code": 306,
+        }
+
+    try:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Amount": amount_username
+                    }
+            } 
+        )
+
+        amount_account_old = users.find({"Account": account})[0]['Amount']
+        amount_account = amount_account_old + amount
+
+        users.update_one(
+            {"Account": account},
+            {
+                "$set": {
+                    "Amount": amount_account
+                    }
+            } 
+        )
+    except Exception as e:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Amount": amount_username_old
+                    }
+            } 
+        )
+
+        users.update_one(
+            {"Account": account},
+            {
+                "$set": {
+                    "Amount": amount_account_old
+                    }
+            } 
+        )
+
+        return {
+            "messange": "Some intern error have occured, you transfer was not done",
+            "status_code": 305,
+            }
+
+    dict_json = {
+        'message': 'Ok',
+        'status_code': 200,
+        'old_total_amount': amount_username_old,
+        'total_transfered': amount,
+        'new_total_amount': amount_username,
+    }
+
+    return dict_json
+
+
+def check_user_account(username):
+    user = users.find({"Username": username})[0]
+
+    return {
+        'message': 'Ok',
+        'status_code': 200,
+        'username': user['Username'],
+        'account': user['Account'],
+        'amount': user['Amount'],
+        'credit': user['Credit'],
+        'credit_limit': user['Credit_limit']
+    }
+
+
+def check_account(account):
+    user = users.find({"Account": account})[0]
+
+    return {
+        'message': 'Ok',
+        'status_code': 200,
+        'username': user['Username'],
+        'account': user['Account'],
+        'amount': user['Amount'],
+        'credit': user['Credit'],
+        'credit_limit': user['Credit_limit']
+    }
