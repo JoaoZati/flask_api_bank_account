@@ -292,3 +292,72 @@ def subtract_amount(account, amount):
             "new_amount": new_amount,
             "account_amount": account_amound
         }
+
+
+def transfer_credit(username, account, amount):
+    user = users.find({"Username": username})[0]
+    credit_username_old = user['Credit']
+    credit_username_new = credit_username_old + amount
+
+    user_account = users.find({"Account": account})[0]
+    amount_account_old = user_account["Amount"]
+    amount_account_new = amount_account_old + amount
+
+    if credit_username_new > user['Credit_limit']:
+        return {
+            "messange": "You don't have enouth credit limit in your account to transfer this amount",
+            "status_code": 308,
+            "credit_limit": user['Credit_limit']
+        }
+
+    try:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Credit": credit_username_new
+                    }
+            } 
+        )
+
+        users.update_one(
+            {"Account": account},
+            {
+                "$set": {
+                    "Amount": amount_account_new
+                    }
+            } 
+        )
+    except Exception as e:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Credit": credit_username_old
+                    }
+            } 
+        )
+
+        users.update_one(
+            {"Account": account},
+            {
+                "$set": {
+                    "Amount": amount_account_old
+                    }
+            } 
+        )
+
+        return {
+            "messange": "Some intern error have occured, you transfer was not done",
+            "status_code": 305,
+            }
+
+    dict_json = {
+        'message': 'Ok',
+        'status_code': 200,
+        'old_credit': credit_username_old,
+        'total_transfered': amount,
+        'new_total_amount': credit_username_new,
+    }
+
+    return dict_json

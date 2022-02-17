@@ -267,6 +267,63 @@ class DeleteAccount(Resource):
         return resp_json
 
 
+class TransferCredit(Resource):
+    def post(self):
+        list_form = [
+            'username',
+            'password',
+            'account',
+            'amount'
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if dict_resp['status_code'] != 200:
+            return dict_resp
+        
+        try:
+            amount = float(dict_resp['amount'])
+        except Exception as e:
+            return jsonify(
+                {
+                    'message': str(e),
+                    'status_code': 305,
+                }
+            )
+        
+        if amount <= 0:
+            return jsonify(
+                {
+                    'message': "For transfer credits you need pass a number bigger than 0",
+                    'status_code': 304
+                }
+            )
+        
+        if not fc.valid_user_and_passoword(dict_resp['username'], dict_resp['password']):
+            return jsonify(
+                {
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
+                }
+            )
+        
+        if not fc.valid_account(dict_resp['account']):
+            return jsonify(
+                {
+                    'message': "The account you provide does not exist",
+                    'status_code': 303,
+                }
+            )
+        
+        dict_json = fc.transfer_credit(
+            dict_resp['username'],
+            dict_resp['account'],
+            dict_resp['amount']
+        )
+
+        return dict_json
+
+
 api.add_resource(Register, "/register")
 api.add_resource(Add, "/add")
 api.add_resource(Transfer, "/transfer")
@@ -274,6 +331,7 @@ api.add_resource(CheckUsername, "/check-username")
 api.add_resource(CheckAccount, "/check-account")
 api.add_resource(DeleteAccount, "/delete-account")
 api.add_resource(Subtract, "/subtract")
+api.add_resource(TransferCredit, "/transfer-credit")
 
 
 if __name__ == '__main__':
