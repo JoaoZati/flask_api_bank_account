@@ -315,13 +315,57 @@ class TransferCredit(Resource):
                 }
             )
         
-        dict_json = fc.transfer_credit(
+        resp_json = fc.transfer_credit(
             dict_resp['username'],
             dict_resp['account'],
             dict_resp['amount']
         )
 
-        return dict_json
+        return resp_json
+
+
+class PayCredit(Resource):
+    def post(self):
+        list_form = [
+            'username',
+            'password',
+            'amount'
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if dict_resp['status_code'] != 200:
+            return dict_resp
+        
+        try:
+            amount = float(dict_resp['amount'])
+        except Exception as e:
+            return jsonify(
+                {
+                    'message': str(e),
+                    'status_code': 305,
+                }
+            )
+        
+        if amount <= 0:
+            return jsonify(
+                {
+                    'message': "For transfer credits you need pass a number bigger than 0",
+                    'status_code': 304
+                }
+            )
+        
+        if not fc.valid_user_and_passoword(dict_resp['username'], dict_resp['password']):
+            return jsonify(
+                {
+                    'message': "Wrong Username or Password",
+                    'status_code': 302,
+                }
+            )
+        
+        resp_json = fc.pay_credit_with_founds(dict_resp['username'], dict_resp['amount'])
+
+        return resp_json
 
 
 api.add_resource(Register, "/register")
@@ -332,6 +376,7 @@ api.add_resource(CheckAccount, "/check-account")
 api.add_resource(DeleteAccount, "/delete-account")
 api.add_resource(Subtract, "/subtract")
 api.add_resource(TransferCredit, "/transfer-credit")
+api.add_resource(PayCredit, "/pay-credit")
 
 
 if __name__ == '__main__':

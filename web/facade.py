@@ -361,3 +361,73 @@ def transfer_credit(username, account, amount):
     }
 
     return dict_json
+
+
+def pay_credit_with_founds(username, amount):
+    user = users.find({"Username": username})[0]
+    credit_username_old = user['Credit']
+    credit_username_new = credit_username_old - amount
+    amount_username_old = user['Amount']
+    amount_username_new = amount_username_old - amount
+    
+    if amount_username_new < 0:
+        return {
+            "messange": "You don't have enouth load in your account to transfer this amount",
+            "status_code": 308,
+            "total_load": amount_username_old,
+            "amount_transfer": amount
+        }
+
+    try:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Credit": credit_username_new
+                    }
+            } 
+        )
+
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Amount": amount_username_new
+                    }
+            } 
+        )
+    except Exception as e:
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Credit": credit_username_old
+                    }
+            } 
+        )
+
+        users.update_one(
+            {"Username": username},
+            {
+                "$set": {
+                    "Amount": amount_username_old
+                    }
+            } 
+        )
+
+        return {
+            "messange": "Some intern error have occured, you transfer was not done",
+            "status_code": 305,
+            }
+    
+    dict_json = {
+        'message': 'Ok',
+        'status_code': 200,
+        'old_credit': credit_username_old,
+        'total_transfered': amount,
+        'new_credit': credit_username_new,
+        'old_amount': amount_username_old,
+        'new_amount': amount_username_new,
+    }
+
+    return dict_json
