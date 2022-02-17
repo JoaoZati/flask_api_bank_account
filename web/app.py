@@ -109,6 +109,41 @@ class Add(Resource):
         return jsonify(dict_resp)
 
 
+class Subtract(Resource):
+    def post(self):
+        list_form = [
+            'admin_username',
+            'admin_password',
+            'account',
+            'amount',
+        ]
+
+        dict_resp = fc.get_data_form(list_form)
+
+        if dict_resp['status_code'] != 200:
+            return dict_resp
+
+        if not fc.valid_admin_and_passoword(dict_resp['admin_username'], dict_resp['admin_password']):
+            return jsonify(
+                {
+                    'Status Code': 303,
+                    'Message': 'Invalid admin username or admin password',
+                }
+            )
+        
+        if not fc.valid_account(dict_resp['account']):
+            return jsonify(
+                {
+                    'Status Code': 302,
+                    'Message': 'Invalid account',
+                }
+            )
+        
+        resp_json = fc.subtract_amount(dict_resp['account'], dict_resp['amount'])
+
+        return jsonify(resp_json)
+
+
 class Transfer(Resource):
     def post(self):
         list_form = [
@@ -238,6 +273,7 @@ api.add_resource(Transfer, "/transfer")
 api.add_resource(CheckUsername, "/check-username")
 api.add_resource(CheckAccount, "/check-account")
 api.add_resource(DeleteAccount, "/delete-account")
+api.add_resource(Subtract, "/subtract")
 
 
 if __name__ == '__main__':

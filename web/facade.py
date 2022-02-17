@@ -262,3 +262,33 @@ def delete_account(account):
         'account': account,
         'username': username
     }
+
+
+def subtract_amount(account, amount):
+    account_amound = users.find({"Account": account})[0]['Amount']
+    new_amount = account_amound - amount
+
+    if new_amount < 0:
+        return {
+            "message": "This account dont have enouth fouds to take this load",
+            "status_code": 308,
+            "amount": amount,
+            "account_amount": account_amound
+        }
+
+    users.update_one(
+        {"Account": account},
+        {
+            "$set": {
+                "Amount": new_amount
+                }
+        } 
+    )
+
+    return {
+            "message": "Ok",
+            "status_code": 200,
+            "amount": amount,
+            "new_amount": new_amount,
+            "account_amount": account_amound
+        }
